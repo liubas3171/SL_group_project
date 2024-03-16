@@ -1,7 +1,7 @@
 
 library(readr)  # For reading CSV files
 library(caret)  # For data preprocessing and model training
-library(Metrics)  # For evaluation metrics
+
 
 data <- read.csv("Life_Expectancy_Data.csv")
 data <- subset(data, Life_expectancy != 0) #removed the rows where life expectancy was zero which didn't make any sense
