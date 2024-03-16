@@ -4,7 +4,7 @@ library(caret)  # For data preprocessing and model training
 library(Metrics)  # For evaluation metrics
 
 data <- read.csv("Life_Expectancy_Data.csv")
-data <- subset(data, Life_expectancy != 0)
+data <- subset(data, Life_expectancy != 0) #removed the rows where life expectancy was zero which didn't make any sense
 
 X <- data[, c('GDP_per_capita', 'Total.expenditure', 'Schooling', "Alcohol_consumption")]
 y <- data$Life_expectancy
