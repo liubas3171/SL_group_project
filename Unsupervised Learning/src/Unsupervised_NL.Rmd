@@ -1,0 +1,264 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(ggplot2)
+library(corrplot)
+```
+
+
+
+```{r}
+data <- read.csv("../LifeExpectancyData.csv")
+
+
+
+```
+
+## General aggregations
+
+
+```{r}
+na_count <- sum(is.na(data))
+na_count
+data <- na.omit(data)
+sum(is.na(data))
+```
+
+```{r}
+head(table(data$ï..Country))
+length(unique(data$ï..Country))
+```
+
+```{r}
+table(data$Region)
+```
+
+```{r}
+sum(data$Economy_status_Developed)
+```
+
+
+
+
+## Summary of continuous variables
+
+
+```{r}
+summary(data)
+```
+
+```{r}
+categorical_vars <- c('ï..Country', 'Region', 'Economy_status_Developed', 'Year')
+my_colnames <- colnames(data)
+my_colnames <- my_colnames[!my_colnames %in% categorical_vars] 
+my_colnames
+```
+## Some analysis
+
+```{r}
+curr_data <- data[data$Year == 2015,]
+curr_data <- curr_data[curr_data$Region == 'European Union',]
+```
+
+
+
+
+
+### PCA
+
+NORMALIZATION OF VARS - scale=true should do so
+WHAT TO DO WITH YEARS -?
+GROUP VARIABLES BY HELTH INDICATIONS, ECONOMIC, ETC
+play with countries, play with variables
+
+prcomp() - to do PCA
+
+```{r}
+rownames(curr_data) <- curr_data$ï..Country
+curr_data
+```
+```{r}
+cor_matrix <- cor(curr_data[my_colnames])
+corrplot(cor_matrix, method = "color", tl.cex=0.6)
+```
+```{r}
+help(corrplot)
+```
+
+
+```{r}
+#curr_data[my_colnames]
+pca_colnames = c(
+       "Life_expectancy",
+       #"Adult_mortality",
+       "Infant_deaths",
+       #"Hepatitis_B",
+       "BMI",
+       #"Measles",
+       #"Polio",
+       "Alcohol_consumption"
+       )
+```
+
+
+
+```{r}
+pca_res = prcomp(curr_data[pca_colnames], scale=TRUE)
+pca_res
+```
+
+```{r}
+pca_res$x
+```
+
+
+```{r}
+biplot(pca_res, scale=0, cex=0.6)
+```
+```{r}
+screeplot(princomp(curr_data[pca_colnames], cor=T))
+```
+```{r}
+temp_v <- pca_res$sdev^2
+temp_v <- temp_v / sum(temp_v)
+#temp_v
+plot(temp_v, xlab="Principal Component", ylab="Proportion of Variance Explained", ylim=c(0,1),type='b')
+```
+```{r}
+plot(cumsum(temp_v), xlab="Principal Component", ylab="Cumulative Proportion of Variance Explained", ylim=c(0,1),type='b')
+```
+
+```{r}
+rho <- cor(curr_data[pca_colnames])
+autoval <- eigen(rho)$values
+plot(autoval, type="b", main="Scree Diagram", xlab="Number of Component", ylab="Eigenvalues")
+abline(h=1, lwd=3, col="red")
+```
+
+
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+## Сlustering
+
+### Hierarchical clustering
+
+
+#### Life expectancy
+```{r}
+res_dist <- dist(curr_data["Life_expectancy"], method = "euclidean")
+hclust_res <- hclust(res_dist, method="complete")
+plot(hclust_res)
+```
+
+#### Alcohol consumption
+```{r}
+res_dist <- dist(curr_data["Alcohol_consumption"], method = "euclidean")
+hclust_res <- hclust(res_dist, method="complete")
+plot(hclust_res)
+```
+#### Schooling
+```{r}
+res_dist <- dist(curr_data["Schooling"], method = "euclidean")
+hclust_res <- hclust(res_dist, method="complete")
+plot(hclust_res)
+```
+
+
+#### Health indicators
+```{r}
+
+
+health_cols = c("Hepatitis_B", "Measles", "Polio", "Diphtheria", "Incidents_HIV")
+normalized_data <- scale(curr_data[health_cols])
+res_dist <- dist(normalized_data, method = "euclidean")
+hclust_res <- hclust(res_dist, method="complete")
+plot(hclust_res)
+```
+```{r}
+curr_data
+```
+
+
+
+```{r}
+curr_data
+```
+
+
+
+
+```{r}
+curr_data["Life_expectancy"]
+```
+
+
+
+### K-means
+
+```{r}
+
+curr_data
+```
+
+```{r}
+summary(curr_data)
+```
+
+
+```{r}
+curr_rows <- c('Life_expectancy', 'Adult_mortality') #, 'Infant_deaths', 'Alcohol_consumption', 'BMI')
+curr_data <- curr_data[curr_rows]
+```
+
+
+```{r}
+kmeans_res <- kmeans(curr_data, centers=4)
+#kmeans_res
+```
+
+```{r}
+
+plot(curr_data[, 1], curr_data[, 2], col = kmeans_res$cluster, pch = 20)
+#points(kmeans_res$centers[, 1], kmeans_res$centers[, 2], col = 1:k, pch = 3, cex = 2)
+
+```
+
+
+```{r}
+k = 5
+kmeans_res_pca = kmeans(pca_res$x, centers=k)
+
+```
+
+```{r}
+plot(pca_res$x[, 1], pca_res$x[, 2], col = kmeans_res_pca$cluster, pch = 20)
+points(kmeans_res_pca$centers[, 1], kmeans_res_pca$centers[, 2], col = 1:k, pch = 3, cex = 2)
+```
+
+```{r}
+pca_res$x[, 1]
+```
+
+
+
+
+
+
+
+
