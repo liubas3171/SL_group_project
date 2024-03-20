@@ -1,0 +1,243 @@
+---
+title: "R Notebook GM"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(ggplot2)
+library(corrplot)
+library(dplyr)
+library(GGally)
+library(pheatmap)
+library(tibble)
+library(maps)
+
+```
+
+## Importing dataset from Github 
+
+```{r}
+url_df='https://raw.githubusercontent.com/liubas3171/SL_group_project/main/Unsupervised%20Learning/data/Life%20Expectancy%20Data.csv'
+
+data <- read.csv(url_df)
+
+
+
+```
+
+## Data exploration of the dataset
+
+
+```{r}
+na_count <- sum(is.na(data))
+print(paste('Absolute value of null values:',na_count))
+data <- na.omit(data)
+```
+
+```{r}
+## Value counts for the Region field
+```{r}
+table(data$Region)
+```
+## Summary of continuous variables
+
+```{r}
+summary(data)
+```
+
+## Preparing the dataset for PCA. By fixing the "Country" column as the index of the dataset, extract all continuous variable columns.
+```{r}
+cols <- c('Region','Population_mln', 'Economy_status_Developed', 'Year','Total.expenditure','Income.composition.of.resources','percentage.expenditure','GDP_per_capita','Schooling','Life_expectancy')
+df_pca <- data  
+df_pca <- df_pca[, !colnames(df_pca) %in% cols]
+df_pca_agg <- aggregate(. ~ Country, df_pca, mean, na.rm = TRUE)
+rownames(df_pca_agg) <- df_pca_agg[, "Country"]
+df_pca_agg <- df_pca_agg[, -which(names(df_pca_agg) == "Country")]  
+df_pca_agg
+```
+### PCA
+```{r}
+pca_res = prcomp(df_pca_agg, scale=TRUE)
+pca_res
+```
+
+## Result of pca : PC1 variability explains the 42,5% of totale variance of data
+```{r}
+summary(pca_res)
+```
+
+
+```{r}
+biplot(pca_res, scale=0, cex=0.55)
+```
+```{r}
+screeplot(princomp(data[], cor=T))
+```
+```{r}
+temp_v <- pca_res$sdev^2
+temp_v <- temp_v / sum(temp_v)
+#temp_v
+plot(temp_v, xlab="Principal Component", ylab="Proportion of Variance Explained", ylim=c(0,1),type='b')
+```
+```{r}
+plot(cumsum(temp_v), xlab="Principal Component", ylab="Cumulative Proportion of Variance Explained", ylim=c(0,1),type='b')
+```
+
+```{r}
+rho <- cor(data[pca_res_colnames])
+autoval <- eigen(rho)$values
+plot(autoval, type="b", main="Scree Diagram", xlab="Number of Component", ylab="Eigenvalues")
+abline(h=1, lwd=3, col="red")
+```
+```{r}
+
+```
+
+## Сlustering
+
+### GDP_per_capita & Infant_deaths
+```{r}
+## Clusterization on life expectancy and percentage expenditure
+
+cl_gdp_id <- dist(scale(data[,c('GDP_per_capita', 'Infant_deaths')]), method = 'euclidean')
+
+# Decide how many clusters to look at
+n_clusters <- 10
+
+# Initialize total within sum of squares error: wss
+wss <- numeric(n_clusters)
+
+set.seed(123)
+
+# Look over 1 to n possible clusters
+for (i in 1:n_clusters) {
+  # Fit the model: km.out
+  km.out <- kmeans(cl_gdp_id, centers = i, nstart = 20)
+  # Save the within cluster sum of squares
+  wss[i] <- km.out$tot.withinss
+}
+
+# Produce a scree plot
+wss_df <- tibble(clusters = 1:n_clusters, wss = wss)
+ 
+scree_plot <- ggplot(wss_df, aes(x = clusters, y = wss, group = 1)) +
+    geom_point(size = 4)+
+    geom_line() +
+    scale_x_continuous(breaks = c(2, 4, 6, 8, 10)) +
+    xlab('Number of clusters')
+
+```
+
+# Visualize cluster 
+```{r}
+k <- 3
+set.seed(123)
+# Build model with k clusters: km.out
+km.out <- kmeans(cl_gdp_id, centers = k, nstart = 20)
+
+
+
+data$cluster_id <- factor(km.out$cluster)
+
+
+ggplot(data, aes(x = GDP_per_capita, y = Infant_deaths, color = factor(cluster_id))) +
+    geom_point(alpha = 0.25) +
+    xlab("GDP_per_capita") +
+    ylab("Infant_deaths") +
+    ggtitle("GDP_per_capita & Infant_deaths") +
+    theme(plot.title = element_text(hjust = 0.5))
+
+
+```
+```{r}
+# Top 5 undevelop countries (cluster 1) for infatn_deaths in relation to
+
+
+mean_data <- aggregate(cbind(Infant_deaths, GDP_per_capita,cluster_id) ~ Country, data = data, FUN = mean)
+
+
+top_countries <- subset(mean_data, cluster_id == 1)
+
+
+top_countries <- top_countries[order(top_countries$Infant_deaths, decreasing = TRUE), ]
+
+
+top_countries <- head(top_countries, 5)
+
+
+top_countries[, c('Country', 'Infant_deaths', 'GDP_per_capita')]
+```
+## GDP & Alchool 
+```{r}
+cl_gdp_alchool <- dist(scale(data[,c('GDP_per_capita', 'Alcohol_consumption')]), method = 'euclidean')
+
+# Decide how many clusters to look at
+n_clusters <- 10
+
+# Initialize total within sum of squares error: wss
+wss <- numeric(n_clusters)
+
+set.seed(123)
+
+# Look over 1 to n possible clusters
+for (i in 1:n_clusters) {
+  # Fit the model: km.out
+  km.out <- kmeans(cl_gdp_alchool, centers = i, nstart = 20)
+  # Save the within cluster sum of squares
+  wss[i] <- km.out$tot.withinss
+}
+
+# Produce a scree plot
+wss_df <- tibble(clusters = 1:n_clusters, wss = wss)
+ 
+scree_plot <- ggplot(wss_df, aes(x = clusters, y = wss, group = 1)) +
+    geom_point(size = 4)+
+    geom_line() +
+    scale_x_continuous(breaks = c(2, 4, 6, 8, 10)) +
+    xlab('Number of clusters')
+```
+
+```{r}
+k <- 3
+set.seed(123)
+# Build model with k clusters: km.out
+km.out <- kmeans(cl_gdp_alchool, centers = k, nstart = 20)
+
+
+
+data$cluster_id <- factor(km.out$cluster)
+
+
+ggplot(data, aes(x = GDP_per_capita, y = Alcohol_consumption, color = factor(cluster_id))) +
+    geom_point(alpha = 0.25) +
+    xlab("GDP_per_capita") +
+    ylab("Alcohol_consumption") +
+    ggtitle("GDP_per_capita & Alcohol_consumption") +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+```{r}
+# Top 5  countries  for Aalchool consumption in relation to gdp
+
+
+mean_data <- aggregate(cbind(Alcohol_consumption, GDP_per_capita,cluster_id) ~ Country, data = data, FUN = mean)
+
+
+top_countries <- subset(mean_data, cluster_id == 1)
+
+
+top_countries <- top_countries[order(top_countries$Alcohol_consumption, decreasing = TRUE), ]
+
+
+top_countries <- head(top_countries, 5)
+
+
+top_countries[, c('Country', 'Alcohol_consumption', 'GDP_per_capita')]
+```
+
+
+
+
+
+
