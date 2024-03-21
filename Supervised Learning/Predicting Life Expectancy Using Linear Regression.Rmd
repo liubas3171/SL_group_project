@@ -35,7 +35,7 @@ Notice that the data is panel data. So it includes both cross sectional data col
 We also drop our identifying variables: country and region, since these will not affect our results.
 
 ```{r}
-data_2014 <- data %>% filter(Year == 2014) %>% select(-(Year, Region, Country))
+data_2014 <- data %>% filter(Year == 2014) %>% select(-c(Year, Region, Country))
 ```
 
 An analysis of the variables does not reveal any evidence of outliers or missing values, so we will skip those aspects in this presentation. However, running the code block below will give a quick overview of the dataset stats
@@ -56,6 +56,7 @@ corrplot(correlation_matrix, method = "circle", type = "lower", order = "hclust"
 
 ```
 
+
 The correlation matrix doesn't reveal any correlations that can distort our model's conclusions. Thus we can move on to view the correlations of each independent variable with the target variable, to see if they are directionally correct, and also to have an idea of which variables might be influential in the eventual regression
 
 ```{r}
@@ -75,12 +76,13 @@ set.seed(212)
 
 next, we split the data into train and test data
 ```{r}
+train_index <- createDataPartition(data_2014$Life_expectancy, p = 0.8, list = FALSE)
 # Create training set
-train_data <- numeric_data_2014[train_index, ]
+train_data <- data_2014[train_index, ]
 y_train <- train_data[["Life_expectancy"]]
 x_train <- subset(train_data, select = -Life_expectancy)
 # Create testing set
-test_data <- numeric_data_2014[-train_index, ]
+test_data <- data_2014[-train_index, ]
 y_test <- test_data[["Life_expectancy"]]
 x_test <- subset(test_data, select = -Life_expectancy)
 ```
@@ -100,16 +102,18 @@ backward_model <- step(full_model, direction = "backward")
 summary(backward_model)
 ```
 
-The model is still able to explain 96% variation
+The model is still able to explain 97% variation in the training data after removing several variables
 
 Next we fit our final model on test data and see how it performs on previously unseen data
 
 ```{r}
-predictions <- predict(lm_model, newdata = test_data)
+predictions <- predict(backward_model, newdata = test_data)
 mse <- mean((y_test - predictions)^2)
 rmse <- sqrt(mse)
+rsquared <- R2(predictions, y_test)
 print(paste("Mean Squared Error (MSE):", mse))
 print(paste("Root Mean Squared Error (RMSE):", rmse))
+print(paste("Rsquared of prediction on test data:", rsquared))
 ```
 
-The rmse shows that the model will accurately predict Life expectancy in 2015, with an average error of 1.7 years
+The rmse shows that the model will accurately predict Life expectancy in 2015, with an average error of 1.57 years.
