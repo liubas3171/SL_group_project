@@ -1,0 +1,115 @@
+---
+title: "Predicting Life expectancy using Regression"
+output: html_document
+date: "2024-03-21"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Import packages for the analysis
+
+```{r}
+library(tidyverse)
+library(skimr)
+library(here)
+library(caret)
+library(corrplot)
+```
+
+## Read in the data from the project folder
+```{r}
+data <- read.csv(here("Supervised Learning/data", "Life_Expectancy_Data.csv"))
+```
+
+
+## Data Cleaning and Exploration
+We take a brief look at the dataset. 
+
+```{r}
+skim_without_charts(data)
+```
+
+Notice that the data is panel data. So it includes both cross sectional data collected amongst several variables, and also data collected over time. To reduce the complication associated with analyzing time series data, we pick data from a single year: 2014, which is the latest data that is completely available. 
+We also drop our identifying variables: country and region, since these will not affect our results.
+
+```{r}
+data_2014 <- data %>% filter(Year == 2014) %>% select(-(Year, Region, Country))
+```
+
+An analysis of the variables does not reveal any evidence of outliers or missing values, so we will skip those aspects in this presentation. However, running the code block below will give a quick overview of the dataset stats
+
+```{r}
+skim_without_charts(data_2014)
+```
+
+## Correlation Matrix
+
+We view the correlation matrix of the dataset to see which dependent variables may be perfectly correlated and would need to be dropped from the model
+
+```{r}
+correlation_matrix <- cor(subset(data_2014, select = -Life_expectancy), use = "pairwise.complete.obs")
+
+# Plot the correlation matrix
+corrplot(correlation_matrix, method = "circle", type = "lower", order = "hclust", tl.col = "black", tl.srt = 45)
+
+```
+
+The correlation matrix doesn't reveal any correlations that can distort our model's conclusions. Thus we can move on to view the correlations of each independent variable with the target variable, to see if they are directionally correct, and also to have an idea of which variables might be influential in the eventual regression
+
+```{r}
+correlation_with_dependent <- sapply(data_2014[, -which(names(data_2014) == "Life_expectancy")], function(x) cor(x, data_2014[["Life_expectancy"]]))
+correlation_with_dependent
+```
+While most of the correlations meet the directional expectations, a few are unexpected such as
+- Alcohol consumption: Alcohol consumption is associated with several health risks so one would expect that it would be negatively correlated with life expectancy. 
+- Diphtheria, Hepatisis_B, Polio: It is also unexpected that the occurence of certain diseases are positively correlated with life expectancy
+
+
+## Building the Model
+First we set seed to make the data reproducible
+```{r}
+set.seed(212)
+```
+
+next, we split the data into train and test data
+```{r}
+# Create training set
+train_data <- numeric_data_2014[train_index, ]
+y_train <- train_data[["Life_expectancy"]]
+x_train <- subset(train_data, select = -Life_expectancy)
+# Create testing set
+test_data <- numeric_data_2014[-train_index, ]
+y_test <- test_data[["Life_expectancy"]]
+x_test <- subset(test_data, select = -Life_expectancy)
+```
+
+We then run the first iteration of the linear regression
+
+```{r}
+full_model <- lm(y_train ~ ., data = x_train)
+summary(full_model)
+```
+
+The adjusted r squared is very impressive at 97%. This means that the model is able to explain 97% of the variation in the training data. However, there are several variables in the model that are insignificant.
+Thus, we try to remove the unnecessary variables using backward feature selection to find the least variables possible that will still explain the same amount of variation
+
+```{r}
+backward_model <- step(full_model, direction = "backward")
+summary(backward_model)
+```
+
+The model is still able to explain 96% variation
+
+Next we fit our final model on test data and see how it performs on previously unseen data
+
+```{r}
+predictions <- predict(lm_model, newdata = test_data)
+mse <- mean((y_test - predictions)^2)
+rmse <- sqrt(mse)
+print(paste("Mean Squared Error (MSE):", mse))
+print(paste("Root Mean Squared Error (RMSE):", rmse))
+```
+
+The rmse shows that the model will accurately predict Life expectancy in 2015, with an average error of 1.7 years
